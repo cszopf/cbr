@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+/* iOS safe area for bottom nav */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent body scroll when suggestions open on mobile */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
