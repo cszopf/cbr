@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
+import AdminPage from './pages/AdminPage'
 import AlertsPage from './pages/AlertsPage'
 import DashboardPage from './pages/DashboardPage'
 import LicenseDetailPage from './pages/LicenseDetailPage'
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/lookup" element={<LookupPage />} />
             <Route path="/license/:id" element={<LicenseDetailPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
