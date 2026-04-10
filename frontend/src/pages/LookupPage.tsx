@@ -66,7 +66,7 @@ export default function LookupPage() {
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await searchLicenses({ q: value, status: 'ACTIVE', page: 1, page_size: 8 })
+        const res = await searchLicenses({ q: value, status: 'ACTIVE', page: 1, page_size: 15 })
         setSuggestions(res.results)
         setShowSuggestions(true)
       } catch {
