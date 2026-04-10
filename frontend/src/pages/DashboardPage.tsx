@@ -23,13 +23,17 @@ function StatCard({ label, value, color = 'blue', to }: { label: string; value: 
 export default function DashboardPage() {
   useEffect(() => { trackEvent('page_view', {}, '/') }, [])
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, error } = useQuery({
     queryKey: ['stats'],
     queryFn: getStats,
   })
 
   if (isLoading) return <div className="text-gray-500">Loading dashboard...</div>
-  if (!stats) return <div className="text-red-500">Failed to load stats</div>
+  if (error || !stats) return <div className="text-red-500">Failed to load stats. <button onClick={() => window.location.reload()} className="underline">Retry</button></div>
+
+  const credCounts: Record<string, number> = stats.credential_type_counts || {}
+  const statusCounts: Record<string, number> = stats.status_counts || {}
+  const topCities: [string, number][] = Array.isArray(stats.top_cities) ? stats.top_cities : []
 
   return (
     <div className="space-y-8">
@@ -41,39 +45,24 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Licenses" value={stats.total_licenses} color="blue" />
         <StatCard label="Active Licenses" value={stats.active_licenses} color="green" />
-        <StatCard
-          label="Expiring Within 90 Days"
-          value={stats.expiring_within_90}
-          color="yellow"
-          to="/alerts"
-        />
-        <StatCard
-          label="Expiring Within 30 Days"
-          value={stats.expiring_within_30}
-          color="red"
-          to="/alerts"
-        />
+        <StatCard label="Expiring Within 90 Days" value={stats.expiring_within_90} color="yellow" to="/alerts" />
+        <StatCard label="Expiring Within 30 Days" value={stats.expiring_within_30} color="red" to="/alerts" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">License Types</h2>
           <div className="space-y-3">
-            {Object.entries(stats.credential_type_counts)
+            {Object.entries(credCounts)
               .sort(([, a], [, b]) => b - a)
               .map(([type, count]) => (
                 <div key={type} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{type}</span>
                   <div className="flex items-center gap-3">
                     <div className="w-32 bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: `${(count / stats.total_licenses) * 100}%` }}
-                      />
+                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(count / (stats.total_licenses || 1)) * 100}%` }} />
                     </div>
-                    <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                      {count.toLocaleString()}
-                    </span>
+                    <span className="text-sm font-medium text-gray-900 w-16 text-right">{count.toLocaleString()}</span>
                   </div>
                 </div>
               ))}
@@ -83,19 +72,14 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Cities</h2>
           <div className="space-y-3">
-            {stats.top_cities.map(([city, count]) => (
+            {topCities.map(([city, count]) => (
               <div key={city} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{city}</span>
                 <div className="flex items-center gap-3">
                   <div className="w-32 bg-gray-100 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${(count / stats.top_cities[0][1]) * 100}%` }}
-                    />
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(count / (topCities[0]?.[1] || 1)) * 100}%` }} />
                   </div>
-                  <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                    {count.toLocaleString()}
-                  </span>
+                  <span className="text-sm font-medium text-gray-900 w-16 text-right">{count.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -106,7 +90,7 @@ export default function DashboardPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Status Breakdown</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {Object.entries(stats.status_counts)
+          {Object.entries(statusCounts)
             .sort(([, a], [, b]) => b - a)
             .map(([status, count]) => (
               <div key={status} className="text-center p-3 bg-gray-50 rounded-lg">
