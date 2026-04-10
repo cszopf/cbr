@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 import supabase from '../api/client'
 
 const ADMIN_HASH = '1904a1a3'
@@ -33,6 +35,7 @@ async function fetchAnalytics(days: number) {
   const searches: Record<string, number> = {}
   const licensePaths: Record<string, number> = {}
   const recentEvents: typeof rows = []
+  const locationMap: Record<string, { lat: number; lon: number; city: string; region: string; count: number }> = {}
 
   for (const e of rows) {
     if (e.session_id) sessions.add(e.session_id)
@@ -57,6 +60,16 @@ async function fetchAnalytics(days: number) {
       licensePaths[e.page_path] = (licensePaths[e.page_path] || 0) + 1
     }
 
+    // Extract geo data from event_data
+    const ed = e.event_data as Record<string, unknown> | null
+    if (ed && typeof ed === 'object' && ed.lat && ed.lon) {
+      const key = `${ed.lat},${ed.lon}`
+      if (!locationMap[key]) {
+        locationMap[key] = { lat: Number(ed.lat), lon: Number(ed.lon), city: String(ed.city || ''), region: String(ed.region || ''), count: 0 }
+      }
+      locationMap[key].count++
+    }
+
     if (recentEvents.length < 50) recentEvents.push(e)
   }
 
@@ -67,6 +80,8 @@ async function fetchAnalytics(days: number) {
   const topSearches = Object.entries(searches).sort(([, a], [, b]) => b - a).slice(0, 15)
   const topLicenses = Object.entries(licensePaths).sort(([, a], [, b]) => b - a).slice(0, 15)
 
+  const locations = Object.values(locationMap).sort((a, b) => b.count - a.count)
+
   return {
     totalEvents: rows.length,
     uniqueSessions: sessions.size,
@@ -76,6 +91,7 @@ async function fetchAnalytics(days: number) {
     topSearches,
     topLicenses,
     recentEvents,
+    locations,
   }
 }
 
@@ -117,6 +133,50 @@ function AdminDashboard() {
           <p className="text-xs text-purple-600">Unique Visitors</p>
           <p className="text-2xl font-bold text-purple-700">{data.uniqueVisitors}</p>
         </div>
+      </div>
+
+      {/* Visitor Map */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Visitor Locations</h2>
+        {data.locations.length > 0 ? (
+          <>
+            <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: '350px' }}>
+              <MapContainer center={[39.96, -82.99]} zoom={7} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {data.locations.map((loc, i) => (
+                  <CircleMarker
+                    key={i}
+                    center={[loc.lat, loc.lon]}
+                    radius={Math.min(8 + loc.count * 3, 30)}
+                    fillColor="#3b82f6"
+                    fillOpacity={0.6}
+                    stroke={true}
+                    color="#1d4ed8"
+                    weight={1}
+                  >
+                    <Popup>
+                      <strong>{loc.city}{loc.region ? `, ${loc.region}` : ''}</strong><br />
+                      {loc.count} event{loc.count !== 1 ? 's' : ''}
+                    </Popup>
+                  </CircleMarker>
+                ))}
+              </MapContainer>
+            </div>
+            <div className="mt-3 space-y-1">
+              {data.locations.slice(0, 10).map((loc, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-50">
+                  <span className="text-gray-700">{loc.city}{loc.region ? `, ${loc.region}` : ''}</span>
+                  <span className="text-gray-500 font-medium">{loc.count} events</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-8">No location data yet. Locations are captured on new visits going forward.</p>
+        )}
       </div>
 
       {/* Event types */}
