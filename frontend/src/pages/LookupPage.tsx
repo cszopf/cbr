@@ -45,17 +45,16 @@ export default function LookupPage() {
   const page = parseInt(searchParams.get('page') || '1')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['licenses', q, licenseType, status, city, page],
+    queryKey: ['licenses', q, licenseType, status || 'ACTIVE', city, page],
     queryFn: () =>
       searchLicenses({
         q: q || undefined,
         license_type: licenseType || undefined,
-        status: status || undefined,
+        status: status || 'ACTIVE',
         city: city || undefined,
         page,
         page_size: 25,
       }),
-    enabled: q.length > 0 || licenseType.length > 0 || status.length > 0 || city.length > 0,
   })
 
   function handleSearch(e: React.FormEvent) {
@@ -211,7 +210,7 @@ export default function LookupPage() {
 
       {!data && !isLoading && (
         <div className="text-center py-12 text-gray-400">
-          Enter a search query to find Ohio real estate licenses
+          No results found
         </div>
       )}
     </div>
