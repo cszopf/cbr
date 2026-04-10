@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from app.routers import alerts, analytics, ce, licenses, renewal
 
 app = FastAPI(
-    title="CBR - Columbus Board of Realtors",
+    title="CBR - Columbus REALTORS®",
     description="Ohio real estate license lookup, CE tracking, and expiration alerts",
     version="0.1.0",
 )

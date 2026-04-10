@@ -17,7 +17,7 @@ export default function Layout() {
           <div className="flex items-center justify-between h-14">
             <Link to="/" className="flex items-center gap-2">
               <span className="text-xl font-bold text-blue-700">CBR</span>
-              <span className="text-sm text-gray-500">Columbus Board of Realtors</span>
+              <span className="text-sm text-gray-500">Columbus REALTORS®</span>
             </Link>
             <nav className="flex gap-1">
               {NAV_ITEMS.map((item) => (
@@ -43,7 +43,7 @@ export default function Layout() {
         <div className="flex items-center justify-center h-12">
           <Link to="/" className="flex items-center gap-1.5">
             <span className="text-lg font-bold text-blue-700">CBR</span>
-            <span className="text-xs text-gray-400">Columbus Board of Realtors</span>
+            <span className="text-xs text-gray-400">Columbus REALTORS®</span>
           </Link>
         </div>
       </header>
