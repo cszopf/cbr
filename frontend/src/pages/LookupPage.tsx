@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { trackEvent } from '../api/analytics'
 import { searchLicenses } from '../api/licenses'
+import type { LicenseSearchResult } from '../types'
 
 const STATUS_OPTIONS = [
   'ACTIVE',
@@ -35,8 +36,50 @@ function statusColor(status: string) {
 export default function LookupPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [inputValue, setInputValue] = useState(searchParams.get('q') || '')
+  const [suggestions, setSuggestions] = useState<LicenseSearchResult[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
 
   useEffect(() => { trackEvent('page_view', {}, '/lookup') }, [])
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Typeahead: debounced search as user types
+  function handleInputChange(value: string) {
+    setInputValue(value)
+    if (debounceTimer) clearTimeout(debounceTimer)
+    if (value.length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchLicenses({ q: value, status: 'ACTIVE', page: 1, page_size: 8 })
+        setSuggestions(res.results)
+        setShowSuggestions(true)
+      } catch {
+        setSuggestions([])
+      }
+    }, 250)
+    setDebounceTimer(timer)
+  }
+
+  function selectSuggestion(lic: LicenseSearchResult) {
+    setShowSuggestions(false)
+    navigate(`/license/${lic.id}`)
+  }
 
   const q = searchParams.get('q') || ''
   const licenseType = searchParams.get('type') || ''
@@ -93,13 +136,40 @@ export default function LookupPage() {
       <h1 className="text-2xl font-bold text-gray-900">License Lookup</h1>
 
       <form onSubmit={handleSearch} className="flex gap-3">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Search by name, license number, or employer..."
-          className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        <div ref={wrapperRef} className="flex-1 relative">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true) }}
+            placeholder="Start typing a name, license number, or employer..."
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            autoComplete="off"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+              {suggestions.map((lic) => (
+                <button
+                  key={lic.id}
+                  type="button"
+                  onClick={() => selectSuggestion(lic)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">{lic.last_name}, {lic.first_name}</span>
+                      <span className="text-xs text-gray-400 ml-2 font-mono">{lic.license_number}</span>
+                    </div>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${statusColor(lic.status)}`}>{lic.status}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {lic.credential_type}{lic.city ? ` · ${lic.city}` : ''}{lic.employer_name ? ` · ${lic.employer_name}` : ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           type="submit"
           className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
