@@ -1,6 +1,6 @@
-import api from './client'
+import axios from 'axios'
+import { SUPABASE_URL, SUPABASE_KEY } from './client'
 
-// Generate a random session ID persisted for the browser session
 function getSessionId(): string {
   let id = sessionStorage.getItem('cbr_session_id')
   if (!id) {
@@ -11,14 +11,17 @@ function getSessionId(): string {
 }
 
 export function trackEvent(eventType: string, eventData: Record<string, unknown> = {}, pagePath?: string) {
-  // Fire and forget — don't block the UI
-  api.post('/analytics/track', {
+  axios.post(`${SUPABASE_URL}/rest/v1/cbr_analytics`, {
     event_type: eventType,
     event_data: eventData,
     page_path: pagePath || window.location.pathname,
     session_id: getSessionId(),
     referrer: document.referrer || null,
-  }).catch(() => {
-    // Silently fail — analytics should never break the app
-  })
+  }, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  }).catch(() => {})
 }
